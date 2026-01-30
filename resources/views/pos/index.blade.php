@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <title>POS Coffee Shop</title>
     
     {{-- Tailwind & Vite --}}
@@ -291,11 +293,56 @@
             });
         }
 
-        function processPayment() {
-            // Logika simpan ke database akan ada di tahap selanjutnya
-            alert('Fitur Bayar (Simpan ke Database) akan kita buat setelah ini!');
-            console.log("Data Transaksi:", cart);
+                async function processPayment() {
+            if (cart.length === 0) return alert('Keranjang kosong!');
+
+            // 1. Ambil Token Keamanan Laravel
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+            // 2. Siapkan Data
+            const totalPrice = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+            const data = {
+                cart: cart,
+                total_price: totalPrice,
+                payment_method: 'cash' // Nanti bisa dibuat dinamis
+            };
+
+            // 3. Kirim ke Server (AJAX)
+            try {
+                // Ubah teks tombol biar terlihat loading
+                const btn = event.target;
+                const originalText = btn.innerText;
+                btn.innerText = 'Memproses...';
+                btn.disabled = true;
+
+                const response = await fetch('/transaction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    // Redirect ke halaman Struk
+                    window.location.href = '/order/' + result.data.id + '/print';
+                } else {
+                    alert('❌ Gagal: ' + result.message);
+                }
+
+                // Kembalikan tombol
+                btn.innerText = originalText;
+                btn.disabled = false;
+
+            } catch (error) {
+                console.error(error);
+                alert('Terjadi kesalahan sistem');
+            }
         }
+
     </script>
 </body>
 </html>
